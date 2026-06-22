@@ -1,23 +1,21 @@
 ---
 layout: default
-title: SteamOS原始系统运行galgame教程
+title: SteamOS原始系统运行GalGame教程
 date: 2026-06-21
 ---
-https://b23.tv/yOH0zka
-# SteamOS原始系统运行galgame教程
 
 ## 1. 前言 
 
 Q：为什么之前有Lutris的教程，还会有SteamOS
 
-A：Lutris在steamdeck的兼容性较差，不如SteamOS方便，兼容性强
+A：Lutris在SteamDeck的兼容性较差，不如SteamOS方便，兼容性强
 
 **本教程经过了Bilibili视频评论区的答疑收集，大部分问题及解决方案都在本文中有排疑和解决方案，如果对你有帮助，可以帮我点点star（虽然项目很烂**
 
 ## 2. 安装教程 
-视频教程：https://b23.tv/yOH0zka
+视频教程：[SteamDeck原始系统游玩Galgame教程](https://b23.tv/yOH0zka)
 
-工具下载链接：https://github.com/yikolemon/easy-steamdeck-galgame/releases/download/V1.0.0/steamdeck-galgame-release.tar
+工具下载链接：[SteamDeck GalGame环境配置工具](https://github.com/yikolemon/easy-steamdeck-galgame/releases/download/V1.0.0/steamdeck-galgame-release.tar)
 
 ## 3. 其他问题
 
