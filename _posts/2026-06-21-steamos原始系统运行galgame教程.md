@@ -1,18 +1,18 @@
 ---
 layout: default
-title: steamos原始系统运行galgame教程
+title: SteamOS原始系统运行galgame教程
 date: 2026-06-21
 ---
 https://b23.tv/yOH0zka
-# steamos原始系统运行galgame教程
+# SteamOS原始系统运行galgame教程
 
 ## 1. 前言 
 
-Q：为什么之前有Lutris的教程，还会有steamos
+Q：为什么之前有Lutris的教程，还会有SteamOS
 
-A：Lutris在steamdeck的兼容性较差，不如steamos方便，兼容性强
+A：Lutris在steamdeck的兼容性较差，不如SteamOS方便，兼容性强
 
-** 本教程经过了Bilibili视频评论区的答疑收集，大部分问题及解决方案都在本文中有排疑和解决方案，如果对你有帮助，可以帮我点点star（虽然项目很烂）**
+**本教程经过了Bilibili视频评论区的答疑收集，大部分问题及解决方案都在本文中有排疑和解决方案，如果对你有帮助，可以帮我点点star（虽然项目很烂**
 
 ## 2. 安装教程 
 视频教程：https://b23.tv/yOH0zka
