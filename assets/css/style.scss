@@ -242,6 +242,7 @@ a {
 
 .article-body {
   max-width: 43rem;
+  width: min(100%, 43rem);
   margin: 0 auto;
   color: var(--body);
   font-family: var(--font-serif);
@@ -251,13 +252,18 @@ a {
 
 .article-shell {
   position: relative;
+  --article-column-width: 43rem;
+  --article-toc-width: clamp(12rem, 13vw, 14rem);
+  --article-toc-gap: clamp(3.5rem, 5vw, 5.75rem);
+  --article-toc-offset: clamp(0.9rem, 1.6vw, 1.6rem);
 }
 
 .article-toc {
   position: fixed;
   top: 5.25rem;
-  left: max(1.25rem, calc((100vw - 78rem) / 2));
-  width: 15.5rem;
+  left: max(1rem, calc(50vw - (var(--article-column-width) / 2) - var(--article-toc-gap) - var(--article-toc-width) - var(--article-toc-offset)));
+  width: var(--article-toc-width);
+  max-height: calc(100vh - 6.5rem);
   overflow: visible;
   border-left: 1px solid rgba(185, 95, 69, 0.24);
   padding: 0.25rem 0 0.25rem 1.1rem;
@@ -547,6 +553,24 @@ a {
 }
 
 @media (max-width: 1180px) {
+  .article-toc {
+    position: static;
+    width: min(43rem, 100%);
+    max-height: none;
+    margin: -1rem auto 2rem;
+    border: 1px solid var(--hairline);
+    border-radius: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.42);
+    box-shadow: 0 14px 36px rgba(53, 45, 35, 0.05);
+  }
+
+  .article-toc .toc-link::before {
+    display: none;
+  }
+}
+
+@media (max-width: 1320px) {
   .article-toc {
     position: static;
     width: min(43rem, 100%);
