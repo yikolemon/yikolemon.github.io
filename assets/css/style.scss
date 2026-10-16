@@ -160,6 +160,20 @@ a {
   white-space: nowrap;
 }
 
+.tool-thread {
+  margin-top: 2.6rem;
+}
+
+.tool-thread__label {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .page-post .main-content,
 .page-basic .main-content {
   max-width: 52rem;

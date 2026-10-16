@@ -21,3 +21,16 @@ layout: default
   </article>
   {% endfor %}
 </section>
+
+<section class="tool-thread" aria-label="数据页面">
+  <p class="tool-thread__label">数据</p>
+  <article class="post-card">
+    <div class="post-header">
+      <div>
+        <p class="post-kicker">Data</p>
+        <h2 class="post-title"><a href="{{ '/fund/' | relative_url }}">基金定投记录</a></h2>
+      </div>
+      <span class="post-meta">持仓 · 收益 · 走势</span>
+    </div>
+  </article>
+</section>
