@@ -1,0 +1,55 @@
+{
+  "note": "约 5 周",
+  "holdings": [
+    {
+      "id": "hs300etf",
+      "invested": 9000.0,
+      "value": 9926.06
+    },
+    {
+      "id": "zz500etf",
+      "invested": 3428.57,
+      "value": 3751.97
+    },
+    {
+      "id": "cybetf",
+      "invested": 1500.0,
+      "value": 1584.78
+    },
+    {
+      "id": "nas100etf",
+      "invested": 5142.86,
+      "value": 5743.37
+    },
+    {
+      "id": "fuguo",
+      "invested": 13500.0,
+      "value": 14759.83
+    },
+    {
+      "id": "xingquan",
+      "invested": 10500.0,
+      "value": 10947.5
+    },
+    {
+      "id": "yifangda",
+      "invested": 3333.33,
+      "value": 3256.51
+    },
+    {
+      "id": "baijiu",
+      "invested": 4571.43,
+      "value": 4379.39
+    },
+    {
+      "id": "guangfa_nasdaq100",
+      "invested": 1575.0,
+      "value": 1787.55
+    },
+    {
+      "id": "tianhong_nasdaq100",
+      "invested": 2325.0,
+      "value": 2612.49
+    }
+  ]
+}

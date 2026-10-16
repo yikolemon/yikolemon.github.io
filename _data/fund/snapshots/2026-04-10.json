@@ -1,0 +1,105 @@
+{
+  "note": "约 8 周",
+  "holdings": [
+    {
+      "id": "hs300etf",
+      "invested": 18000.0,
+      "value": 16719.53
+    },
+    {
+      "id": "zz500etf",
+      "invested": 8571.43,
+      "value": 7839.83
+    },
+    {
+      "id": "cybetf",
+      "invested": 6000.0,
+      "value": 5165.13
+    },
+    {
+      "id": "nas100etf",
+      "invested": 12857.14,
+      "value": 12381.74
+    },
+    {
+      "id": "sp500etf",
+      "invested": 4800.0,
+      "value": 4608.96
+    },
+    {
+      "id": "honglietf",
+      "invested": 7500.0,
+      "value": 7836.15
+    },
+    {
+      "id": "fuguo",
+      "invested": 27000.0,
+      "value": 25596.13
+    },
+    {
+      "id": "xingquan",
+      "invested": 21000.0,
+      "value": 19053.6
+    },
+    {
+      "id": "yifangda",
+      "invested": 13333.33,
+      "value": 11057.84
+    },
+    {
+      "id": "zhongou",
+      "invested": 7200.0,
+      "value": 5141.26
+    },
+    {
+      "id": "baijiu",
+      "invested": 11428.57,
+      "value": 8917.42
+    },
+    {
+      "id": "ths300",
+      "invested": 2000.0,
+      "value": 1906.94
+    },
+    {
+      "id": "nanfang_nasdaq100",
+      "invested": 1920.0,
+      "value": 1814.73
+    },
+    {
+      "id": "morgan_sp500",
+      "invested": 1300.0,
+      "value": 1228.13
+    },
+    {
+      "id": "morgan_nasdaq100",
+      "invested": 1300.0,
+      "value": 1207.1
+    },
+    {
+      "id": "guangfa_nasdaq100",
+      "invested": 3150.0,
+      "value": 3086.39
+    },
+    {
+      "id": "guotai_nasdaq100",
+      "invested": 1400.0,
+      "value": 1324.41
+    },
+    {
+      "id": "jingshun_na_tech",
+      "invested": 800.0,
+      "value": 723.75
+    },
+    {
+      "id": "tianhong_nasdaq100",
+      "invested": 4650.0,
+      "value": 4542.15
+    },
+    {
+      "id": "zhongou_c",
+      "invested": 600.0,
+      "value": 437.4
+    }
+  ]
+}

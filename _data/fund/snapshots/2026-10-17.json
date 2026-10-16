@@ -1,0 +1,125 @@
+{
+  "note": "约 17 周",
+  "holdings": [
+    {
+      "id": "hs300etf",
+      "invested": 24000.0,
+      "value": 27514.48
+    },
+    {
+      "id": "zz500etf",
+      "invested": 12000.0,
+      "value": 13496.67
+    },
+    {
+      "id": "cybetf",
+      "invested": 9000.0,
+      "value": 10141.85
+    },
+    {
+      "id": "nas100etf",
+      "invested": 18000.0,
+      "value": 20597.6
+    },
+    {
+      "id": "sp500etf",
+      "invested": 8000.0,
+      "value": 9009.98
+    },
+    {
+      "id": "honglietf",
+      "invested": 15000.0,
+      "value": 16414.83
+    },
+    {
+      "id": "fuguo",
+      "invested": 36000.0,
+      "value": 40392.5
+    },
+    {
+      "id": "xingquan",
+      "invested": 28000.0,
+      "value": 30628.0
+    },
+    {
+      "id": "yifangda",
+      "invested": 20000.0,
+      "value": 20300.38
+    },
+    {
+      "id": "zhongou",
+      "invested": 12000.0,
+      "value": 11211.99
+    },
+    {
+      "id": "baijiu",
+      "invested": 16000.0,
+      "value": 15930.76
+    },
+    {
+      "id": "ths300",
+      "invested": 6000.0,
+      "value": 6779.98
+    },
+    {
+      "id": "nanfang_nasdaq100",
+      "invested": 3200.0,
+      "value": 3571.74
+    },
+    {
+      "id": "morgan_sp500",
+      "invested": 2600.0,
+      "value": 2872.36
+    },
+    {
+      "id": "morgan_nasdaq100",
+      "invested": 2600.0,
+      "value": 2870.11
+    },
+    {
+      "id": "guangfa_nasdaq100",
+      "invested": 4200.0,
+      "value": 4870.7
+    },
+    {
+      "id": "huaan_nasdaq100",
+      "invested": 1200.0,
+      "value": 1307.39
+    },
+    {
+      "id": "dacheng_nasdaq100",
+      "invested": 1500.0,
+      "value": 1647.42
+    },
+    {
+      "id": "zhaoshang_nasdaq100",
+      "invested": 1100.0,
+      "value": 1208.75
+    },
+    {
+      "id": "guotai_nasdaq100",
+      "invested": 4200.0,
+      "value": 4600.85
+    },
+    {
+      "id": "jingshun_na_tech",
+      "invested": 2400.0,
+      "value": 2608.98
+    },
+    {
+      "id": "tianhong_nasdaq100",
+      "invested": 6200.0,
+      "value": 7128.88
+    },
+    {
+      "id": "zhongou_c",
+      "invested": 1800.0,
+      "value": 1715.39
+    },
+    {
+      "id": "bosera_sp500",
+      "invested": 900.0,
+      "value": 1003.23
+    }
+  ]
+}
