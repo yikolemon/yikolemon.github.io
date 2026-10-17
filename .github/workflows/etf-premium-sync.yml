@@ -101,10 +101,22 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
           # 主站是 branch 模式的 Pages，push 本身就会触发构建。
-          # 这里再显式点一次做兜底；万一仓库以后改成 workflow 模式，
-          # 这个接口会 404/409，忽略即可。
+          # 这里再显式点一次做兜底 —— GITHUB_TOKEN 的 push 不一定会触发
+          # pages-build-deployment 那个 workflow，而「数据提交了、站点没更新」
+          # 是最容易无声无息的那种失败，所以这里要说清楚。
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages/builds" || true)
-          echo "手动触发 Pages 构建返回：$code（404/409 表示不需要，正常）"
+            "https://api.github.com/repos/${{ github.repository }}/pages/builds" || echo "curl-failed")
+          echo "手动触发 Pages 构建返回：$code"
+          case "$code" in
+            200|201|204) echo "已再次触发构建" ;;
+            404|409)     echo "该仓库不是 branch 模式的 Pages，push 会自己触发构建" ;;
+            *)           echo "::warning::Pages 构建接口返回 $code，push 若也没触发构建，站点会停在旧数据" ;;
+          esac
+          {
+            echo "## ETF 溢价率数据已更新"
+            echo ""
+            echo "- 提交：\`chore(溢价率): 每日增量更新 $(date -u +%F)\`"
+            echo "- 触发 Pages 构建接口：\`$code\`"
+          } >> "$GITHUB_STEP_SUMMARY"
