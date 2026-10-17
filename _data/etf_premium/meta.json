@@ -1,0 +1,12 @@
+{
+  "title": "纳指100 场内 ETF 历史溢价率",
+  "currency": "CNY",
+  "is_placeholder": false,
+  "method": "溢价率(T) = 场内收盘价(T) ÷ 基金单位净值(T-1) − 1",
+  "caveat": "QDII 的净值(T-1) 反映的是 T-2 夜的美股收盘，价格(T) 已 price in T-1 夜的美股涨跌，所以这是「名义溢价率」，含隔夜美股涨跌。",
+  "sources": {
+    "price": "web.ifzq.gtimg.cn（腾讯，不复权日K）",
+    "nav": "api.fund.eastmoney.com/f10/lsjz（东财，单位净值）"
+  },
+  "note": "由 script/etf_premium.py sync 生成，不要手改 series/。"
+}

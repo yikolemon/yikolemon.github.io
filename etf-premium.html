@@ -1,0 +1,1741 @@
+---
+layout: default
+title: 纳指100 ETF 溢价率
+permalink: /etf-premium/
+---
+
+<!--
+  纳指100 场内 ETF 历史溢价率 / 数据维护说明
+  ─────────────────────────────────────────────────────────────
+  数据在 repo/_data/etf_premium/，由 script/etf_premium.py 生成，本页只读、只算。
+  页面由 Jekyll 在建站时用 jsonify 把数据注入 window.EP_DATA，无需 fetch。
+
+  ── 目录结构 ──
+    _data/etf_premium/
+    ├── meta.json                  口径说明 + 数据源
+    ├── funds.json                 标的清单：code / exchange / name / manager / tracking
+    └── series/<代码>.json          一只 ETF 一个文件
+                                     columns = [date, close, nav_date, nav, premium]
+
+  ── 更新 ──
+    cd repo
+    python script/etf_premium.py sync     增量更新全部标的（日常就这一条）
+    python script/etf_premium.py check    校验
+    加标的：往 funds.json 里加一行，再 sync（本页会自动多一条线、一张卡、一列）
+    提交推送后 GitHub Pages 自动重建。
+
+  ── 口径（页面里也写了，改之前先看）──
+    溢价率(T) = 场内收盘价(T) ÷ 基金单位净值(T-1) − 1
+    价格用不复权收盘价，净值用单位净值 —— 用复权价或累计净值会把分红算进历史。
+    ★ QDII 的净值(T-1) 反映的是 T-2 夜的美股收盘，而价格(T) 已 price in T-1 夜的美股涨跌，
+      所以这里是「名义溢价率」，含隔夜美股涨跌，不是纯溢价。
+
+  配色全部取自 assets/css/style.scss 的站点变量，不要在这里另起一套色板。
+-->
+
+<style>
+  /* 站点变量之外只补「红涨绿跌」和图表取色 */
+  :root {
+    --ep-card: rgba(255, 255, 255, 0.36);
+    --ep-border: var(--hairline);
+    --ep-border-soft: #ece6da;
+    --ep-ink: var(--ink);
+    --ep-ink-soft: var(--body);
+    --ep-muted: var(--muted);
+    --ep-faint: #9a948a;
+    --ep-accent: var(--accent);
+    --ep-accent-soft: rgba(217, 119, 87, 0.12);
+    /* 溢价为正 = 贵，按国内「红涨绿跌」的习惯给红色 */
+    --ep-up: #b4472f;
+    --ep-down: #4f7a5f;
+    --ep-radius: 1rem;
+    --ep-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  }
+
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  .ep {
+    padding-bottom: 0.5rem;
+    color: var(--body);
+    font-size: 0.95rem;
+  }
+
+  .ep *,
+  .ep *::before,
+  .ep *::after {
+    box-sizing: border-box;
+  }
+
+  .ep-back {
+    display: inline-block;
+    margin-bottom: 1.9rem;
+    color: var(--ep-muted);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .ep-back::before {
+    content: "\2190";
+    margin-right: 0.35rem;
+  }
+
+  .ep-back:hover {
+    color: var(--accent-dark);
+    text-decoration: none;
+  }
+
+  .ep-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
+  }
+
+  .ep-up { color: var(--ep-up); }
+  .ep-down { color: var(--ep-down); }
+
+  /* ── 页头 ───────────────────────────────────────────── */
+  .ep-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--ep-border);
+  }
+
+  .ep-eyebrow {
+    margin: 0 0 0.5rem;
+    color: var(--accent-dark);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* 压过站点 `.main-content h1` 的居中与超大字号 */
+  .ep .ep-headline {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: clamp(1.9rem, 4.4vw, 2.7rem);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+    text-align: left;
+  }
+
+  .ep-headmeta {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--ep-muted);
+  }
+
+  .ep-headright {
+    font-size: 13px;
+    color: var(--ep-muted);
+    text-align: right;
+  }
+
+  .ep-headright strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ep-ink-soft);
+  }
+
+  .ep-stale {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 8px;
+    color: #8a5a1e;
+    font-size: 0.72rem;
+    background: #fbf3e4;
+    border: 1px solid #e8d5b0;
+    border-radius: 999px;
+  }
+
+  .ep-banner {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    color: #7a4a18;
+    font-size: 0.82rem;
+    line-height: 1.75;
+    background: #fdf6ea;
+    border: 1px solid #e8d5b0;
+    border-radius: 0.75rem;
+  }
+
+  .ep-banner[hidden] {
+    display: none;
+  }
+
+  .ep-banner b {
+    color: #6b3f12;
+  }
+
+  .ep-banner code {
+    padding: 1px 5px;
+    color: #6b3f12;
+    font-family: "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.78rem;
+    background: rgba(232, 213, 176, 0.55);
+    border-radius: 0.25rem;
+  }
+
+  /* ── 通用区块 ───────────────────────────────────────── */
+  .ep-section {
+    margin-top: 2.75rem;
+  }
+
+  .ep-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .ep .ep-h2 {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+
+  .ep-h2 small {
+    margin-left: 0.5rem;
+    color: var(--ep-faint);
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  /* ── 总览四数 ───────────────────────────────────────── */
+  .ep-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .ep-stat {
+    padding: 0.9rem 1rem;
+    background: var(--ep-card);
+    border: 1px solid var(--ep-border);
+    border-radius: var(--ep-radius);
+    box-shadow: var(--ep-shadow);
+  }
+
+  .ep-stat-label {
+    color: var(--ep-muted);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+  }
+
+  .ep-stat-value {
+    margin-top: 0.3rem;
+    color: var(--ep-ink);
+    font-size: clamp(1.35rem, 3vw, 1.7rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+
+  .ep-stat-value.ep-up { color: var(--ep-up); }
+  .ep-stat-value.ep-down { color: var(--ep-down); }
+
+  .ep-stat-sub {
+    margin-top: 0.3rem;
+    color: var(--ep-faint);
+    font-size: 0.76rem;
+  }
+
+  /* ── 面板 ───────────────────────────────────────────── */
+  .ep-panel {
+    padding: 1.1rem 1.25rem;
+    background: var(--ep-card);
+    border: 1px solid var(--ep-border);
+    border-radius: var(--ep-radius);
+    box-shadow: var(--ep-shadow);
+  }
+
+  /* ── 图例 / 范围按钮 ────────────────────────────────── */
+  .ep-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .ep-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .ep-chip {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 0.24rem 0.62rem;
+    color: var(--ep-muted);
+    font: inherit;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--surface);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  }
+
+  .ep-chip:hover {
+    color: var(--ep-ink);
+  }
+
+  .ep-chip[aria-pressed="true"] {
+    color: var(--ep-ink);
+    background: rgba(255, 255, 255, 0.85);
+    border-color: var(--ep-border);
+  }
+
+  /* 未选中的图例：色块褪成灰，一眼能看出「这条线现在没画」 */
+  .ep-chip[aria-pressed="false"] .ep-dot {
+    background: #c9c3b8 !important;
+  }
+
+  .ep-chip[aria-pressed="false"] .ep-chip-name {
+    color: var(--ep-faint);
+  }
+
+  .ep-chip:focus-visible,
+  .ep-dim:focus-visible,
+  .ep-reset:focus-visible {
+    outline: 2px solid var(--ep-accent);
+    outline-offset: 1px;
+  }
+
+  .ep-dot {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+  }
+
+  .ep-chip-code {
+    color: var(--ep-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ep-dims {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 3px;
+    background: var(--surface);
+    border-radius: 0.6rem;
+  }
+
+  .ep-dim {
+    padding: 0.28rem 0.7rem;
+    color: var(--ep-muted);
+    font: inherit;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 0.45rem;
+    transition: color 0.15s, background-color 0.15s;
+  }
+
+  .ep-dim:hover {
+    color: var(--ep-ink);
+  }
+
+  .ep-dim[aria-pressed="true"] {
+    color: var(--accent-dark);
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(53, 45, 35, 0.08);
+  }
+
+  .ep-reset {
+    padding: 0.28rem 0.7rem;
+    color: var(--accent-dark);
+    font: inherit;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--ep-accent-soft);
+    border: 0;
+    border-radius: 0.45rem;
+    transition: background-color 0.15s;
+  }
+
+  .ep-reset[hidden] {
+    display: none;
+  }
+
+  .ep-reset:hover {
+    background: rgba(217, 119, 87, 0.22);
+  }
+
+  .ep-chart {
+    position: relative;
+    height: 360px;
+  }
+
+  /* chartjs-plugin-zoom 会给画布加 touch-action:none，
+     后果是手机上手指滑过图表时页面滚不动。纵向还给浏览器，横向留给图表。 */
+  .ep-chart canvas {
+    touch-action: pan-y !important;
+  }
+
+  .ep-empty {
+    padding: 24px 20px;
+    color: var(--ep-muted);
+    font-size: 13.5px;
+    line-height: 1.8;
+    text-align: center;
+    background: var(--ep-card);
+    border: 1px dashed var(--ep-border);
+    border-radius: var(--ep-radius);
+  }
+
+  .ep-empty[hidden],
+  .ep-chart[hidden],
+  .ep-cards[hidden] {
+    display: none;
+  }
+
+  .ep-empty b {
+    color: var(--ep-ink-soft);
+  }
+
+  /* ── 卡片矩阵 ───────────────────────────────────────── */
+  .ep-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .ep-card {
+    padding: 1rem 1.1rem 0.6rem;
+    cursor: pointer;
+    background: var(--ep-card);
+    border: 1px solid var(--ep-border);
+    border-radius: var(--ep-radius);
+    box-shadow: var(--ep-shadow);
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+  }
+
+  .ep-card:hover {
+    transform: translateY(-2px);
+    border-color: #cdc4b4;
+    box-shadow: 0 18px 50px rgba(53, 45, 35, 0.07);
+  }
+
+  .ep-card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .ep-card-top {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .ep-card-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ep-ink);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ep-card-code {
+    flex: none;
+    color: var(--ep-faint);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ep-card-nums {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: baseline;
+    margin-top: 8px;
+  }
+
+  .ep-card-value {
+    color: var(--ep-ink);
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+
+  .ep-card-value.ep-up { color: var(--ep-up); }
+  .ep-card-value.ep-down { color: var(--ep-down); }
+
+  /* 当前值站在自己历史的什么位置 —— 比绝对数字更能说明「贵不贵」 */
+  .ep-tag {
+    flex: none;
+    padding: 1px 7px;
+    color: var(--accent-dark);
+    font-size: 0.7rem;
+    background: var(--ep-accent-soft);
+    border-radius: 999px;
+  }
+
+  .ep-tag.ep-tag--hot {
+    color: #8a3b22;
+    background: rgba(180, 71, 47, 0.14);
+  }
+
+  .ep-card-spark {
+    position: relative;
+    height: 62px;
+    margin-top: 6px;
+  }
+
+  .ep-card-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding-top: 6px;
+    color: var(--ep-muted);
+    font-size: 0.74rem;
+  }
+
+  /* ── 折叠块 / 表格 ──────────────────────────────────── */
+  .ep-detail {
+    margin-top: 36px;
+    background: var(--ep-card);
+    border: 1px solid var(--ep-border);
+    border-radius: var(--ep-radius);
+    box-shadow: var(--ep-shadow);
+  }
+
+  .ep-detail + .ep-detail {
+    margin-top: 0.6rem;
+  }
+
+  .ep-detail > summary {
+    padding: 0.9rem 1.25rem;
+    color: var(--ep-ink-soft);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .ep-detail > summary small {
+    margin-left: 0.55rem;
+    color: var(--ep-faint);
+    font-size: 0.8rem;
+    font-weight: 400;
+  }
+
+  .ep-detail > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .ep-detail > summary::after {
+    margin-left: 8px;
+    color: var(--ep-faint);
+    content: "\25BE";
+  }
+
+  .ep-detail[open] > summary::after {
+    content: "\25B4";
+  }
+
+  .ep-detail > summary:focus-visible {
+    outline: 2px solid var(--ep-accent);
+    outline-offset: -2px;
+    border-radius: var(--ep-radius);
+  }
+
+  .ep-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.35rem;
+  }
+
+  /* 必须带 `.main-content` 前缀：Cayman 自带的 `.main-content table`
+     （display:block + 四面边框）特异性更高会赢，一旦被改成 display:block，
+     表格就收缩到内容宽度、右边留空 —— 看起来像「偏左」。 */
+  .main-content .ep-table {
+    display: table;
+    width: 100%;
+    overflow: visible;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 0.84rem;
+    white-space: nowrap;
+  }
+
+  .main-content .ep-table th,
+  .main-content .ep-table td {
+    padding: 0.5rem 0.6rem;
+    font-weight: 400;
+    text-align: right;
+    vertical-align: middle;
+    border: 0;
+    border-bottom: 1px solid var(--ep-border-soft);
+  }
+
+  .main-content .ep-table th:first-child,
+  .main-content .ep-table td:first-child {
+    padding-left: 1.25rem;
+    text-align: left;
+  }
+
+  .main-content .ep-table th:last-child,
+  .main-content .ep-table td:last-child {
+    padding-right: 1.25rem;
+  }
+
+  .main-content .ep-table thead th {
+    padding-bottom: 0.45rem;
+    color: var(--ep-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--ep-border);
+  }
+
+  /* 年度矩阵的首列是年份，钉在左边方便左右滚动时对照 */
+  .main-content .ep-table th.ep-sticky,
+  .main-content .ep-table td.ep-sticky {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #faf9f5;
+  }
+
+  .main-content .ep-table tbody tr {
+    transition: background-color 0.12s;
+  }
+
+  .main-content .ep-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .main-content .ep-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .main-content .ep-table .ep-cell-name {
+    line-height: 1.35;
+    white-space: normal;
+  }
+
+  .main-content .ep-table .ep-name {
+    color: var(--ep-ink);
+    font-weight: 600;
+  }
+
+  .main-content .ep-table .ep-code {
+    margin-left: 0.3rem;
+    color: var(--ep-faint);
+    font-size: 0.76rem;
+  }
+
+  .main-content .ep-table .ep-sub {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--ep-faint);
+    font-size: 0.74rem;
+  }
+
+  .main-content .ep-table .ep-muted {
+    color: var(--ep-faint);
+  }
+
+  /* 分位条：按最大的一只为满格缩放，否则都挤成一小截看不出差别 */
+  .ep-rank {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .ep-rank-track {
+    display: inline-block;
+    width: 2.8rem;
+    height: 0.34rem;
+    background: var(--surface);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .ep-rank-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+
+  /* ── 口径说明 ───────────────────────────────────────── */
+  .ep-note-body {
+    padding: 0 1.25rem 1.1rem;
+    color: var(--ep-muted);
+    font-size: 0.8rem;
+    line-height: 1.85;
+  }
+
+  .ep-note-body b {
+    color: var(--ep-ink-soft);
+  }
+
+  .ep-note-body ul {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+
+  .ep-note-body li + li {
+    margin-top: 0.35rem;
+  }
+
+  .ep-note-body code {
+    padding: 1px 5px;
+    color: #7b4a36;
+    font-family: "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.78rem;
+    background: var(--surface);
+    border-radius: 0.25rem;
+  }
+
+  /* ── 响应式 ─────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .ep-head {
+      align-items: flex-start;
+    }
+
+    .ep-headright {
+      text-align: left;
+    }
+
+    .ep-stat-value {
+      font-size: 1.35rem;
+    }
+
+    .ep-chart {
+      height: 260px;
+    }
+
+    .ep-tools {
+      gap: 8px;
+    }
+  }
+</style>
+
+<div class="ep">
+  <a class="ep-back" href="{{ '/' | relative_url }}">返回文章列表</a>
+
+  <header class="ep-head">
+    <div>
+      <p class="ep-eyebrow">QDII 溢价</p>
+      <h1 class="ep-headline">纳指100 场内 ETF 溢价率</h1>
+      <p class="ep-headmeta" id="epHeadMeta"></p>
+    </div>
+    <div class="ep-headright">
+      <strong id="epUpdated">—</strong>
+      <span id="epCount"></span>
+    </div>
+  </header>
+
+  <div class="ep-banner" id="epBanner" hidden></div>
+
+  <section class="ep-stats" id="epStats" aria-label="总览"></section>
+
+  <section class="ep-section">
+    <div class="ep-section-head">
+      <h2 class="ep-h2">溢价率历史走势 <small id="epChartHint"></small></h2>
+      <button type="button" class="ep-reset" id="epReset" hidden>复位</button>
+    </div>
+
+    <div class="ep-panel">
+      <div class="ep-tools">
+        <div class="ep-chips" id="epChips" role="group" aria-label="选择标的"></div>
+        <div class="ep-dims" id="epRanges" role="group" aria-label="时间范围"></div>
+      </div>
+      <div class="ep-chart" id="epChartWrap">
+        <canvas id="epChart" aria-label="溢价率历史走势"></canvas>
+      </div>
+      <div class="ep-empty" id="epEmpty" hidden></div>
+    </div>
+  </section>
+
+  <section class="ep-section">
+    <div class="ep-section-head">
+      <h2 class="ep-h2">当前一览 <small>点卡片可只看这一只</small></h2>
+    </div>
+    <div class="ep-cards" id="epCards"></div>
+  </section>
+
+  <details class="ep-detail">
+    <summary>逐只统计 <small id="epStatMeta"></small></summary>
+    <div class="ep-table-wrap">
+      <table class="ep-table">
+        <thead>
+          <tr>
+            <th scope="col">标的</th>
+            <th scope="col">最新溢价</th>
+            <th scope="col">历史分位</th>
+            <th scope="col">全历史中位</th>
+            <th scope="col">p95</th>
+            <th scope="col">最高</th>
+            <th scope="col">最低</th>
+            <th scope="col">上市日</th>
+            <th scope="col">交易日</th>
+          </tr>
+        </thead>
+        <tbody id="epStatBody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="ep-detail">
+    <summary>年度溢价率均值 <small id="epYearMeta"></small></summary>
+    <div class="ep-table-wrap">
+      <table class="ep-table">
+        <thead id="epYearHead"></thead>
+        <tbody id="epYearBody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="ep-detail">
+    <summary>口径说明</summary>
+    <div class="ep-note-body">
+      <ul>
+        <li>溢价率(T) = <b>场内收盘价(T) ÷ 基金单位净值(T-1) − 1</b>。价格用<b>不复权</b>收盘价，
+          净值用<b>单位净值</b> —— 用复权价或累计净值会把分红算进历史，越早的日期错得越离谱。</li>
+        <li><b>这是「名义溢价率」，不是纯溢价。</b>QDII 的净值(T-1) 反映的是 T-2 夜的<b>美股收盘</b>，
+          而价格(T) 已经 price in 了 T-1 夜的美股涨跌。所以溢价率里天然含了一段隔夜美股涨跌，
+          美股大跌的次日，溢价率会虚高。要看剔除了隔夜涨跌的口径，得另外引入纳指100 期货/指数涨跌。</li>
+        <li>净值用的是<b>严格早于交易日</b>的最近一天；若与交易日相隔超过 12 天（停牌、长假）则丢弃该点，
+          所以各图的起止日可能略有差异。</li>
+        <li>溢价为正（红）代表场内买贵了，为负（绿）代表折价。长期看这个值应该围绕 0 波动，
+          常态区间约 −0.5% ~ +1.5%。</li>
+        <li>曲线上的每一个点都对应真实交易日收盘；<b>滚轮可缩放、拖拽可平移</b>，
+          放大后标题旁出现「复位」，双击图表同样还原。</li>
+        <li>「全部」按<b>当前选中的标的</b>算起止（不是全球最早那天）——
+          只看一只 2023 年上市的 ETF 时，不会先空出十年。</li>
+        <li>数据由 <code>script/etf_premium.py sync</code> 抓取，来源为腾讯日行情（不复权）与东方财富基金净值。
+          <b>不构成投资建议。</b></li>
+      </ul>
+    </div>
+  </details>
+</div>
+
+<script>
+  window.EP_DATA = {{ site.data.etf_premium | jsonify }};
+</script>
+<!-- 图表库自托管在 assets/js/，不走 CDN（jsdelivr 在国内可达性不稳定，
+     且外链一旦卡住会阻塞解析、整页都渲染不出来） -->
+<script src="{{ '/assets/js/chart.umd.min.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/hammer.min.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/chartjs-plugin-zoom.min.js' | relative_url }}"></script>
+<script>
+  (function () {
+    "use strict";
+
+    var DATA = window.EP_DATA;
+    if (!DATA || !DATA.funds || !DATA.series || !window.Chart) return;
+
+    /* 图表字体/颜色跟随站点设计变量，不硬编码 */
+    if (Chart.defaults && Chart.defaults.font && window.getComputedStyle) {
+      var siteVars = window.getComputedStyle(document.documentElement);
+      var sansFamily = siteVars.getPropertyValue("--font-sans").trim();
+      var mutedColor = siteVars.getPropertyValue("--muted").trim();
+      if (sansFamily) Chart.defaults.font.family = sansFamily;
+      if (mutedColor) Chart.defaults.color = mutedColor;
+    }
+
+    var PALETTE = [
+      "#d97757", "#b95f45", "#8a7a63", "#c9a24a", "#6f7d6a",
+      "#5f7d8c", "#8c6b8f", "#a1553c", "#9c8b6e", "#4f6b5a"
+    ];
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+    /* 一律 Number() 过一道再算：数据里万一混进字符串（比如 "-7e-05" 这种
+       没有小数点的指数写法会被 YAML 系解析器当成字符串），求和会变成
+       字符串拼接、最后渲染成「−NaN%」。这里挡掉，页面就不会静默出错。 */
+    function num(v) {
+      var n = Number(v);
+      return isFinite(n) ? n : NaN;
+    }
+    function signedPct(r, digits) {
+      var v = num(r);
+      if (!isFinite(v)) return "—";
+      return (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(digits == null ? 2 : digits) + "%";
+    }
+    function tone(n) {
+      return num(n) >= 0 ? "ep-up" : "ep-down";
+    }
+    function shortDate(ts) {
+      var d = new Date(ts);
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
+    function tickDate(ts) {
+      var d = new Date(ts);
+      return d.getFullYear() + "/" + (d.getMonth() + 1);
+    }
+    function pad(n) {
+      return n < 10 ? "0" + n : String(n);
+    }
+    function daysBetween(a, b) {
+      return Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+    }
+    /* 把 #rrggbb 变成本色低透明版，给迷你走势的填充用 */
+    function alpha(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return (
+        "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"
+      );
+    }
+    /* 当前值站在自己历史的什么位置：<= 当前值的比例 */
+    function percentileRank(sortedAsc, v) {
+      var lo = 0;
+      var hi = sortedAsc.length;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (sortedAsc[mid] <= v) lo = mid + 1;
+        else hi = mid;
+      }
+      return sortedAsc.length ? lo / sortedAsc.length : 0;
+    }
+
+    /* ── 整理数据 ───────────────────────────────────── */
+    /* series/<代码>.json 的 rows 是 [交易日, 收盘价, 净值日期, 单位净值, 溢价率] */
+    var funds = DATA.funds.slice();
+    var charts = {};
+    funds.forEach(function (f, i) {
+      var body = DATA.series[f.code];
+      if (!body || !body.rows || !body.rows.length) return;
+      var rows = body.rows;
+      var prem = rows.map(function (r) {
+        return num(r[4]);
+      });
+      charts[f.code] = {
+        fund: f,
+        color: PALETTE[i % PALETTE.length],
+        rows: rows,
+        byDate: (function () {
+          var m = {};
+          rows.forEach(function (r) {
+            m[r[0]] = r;
+          });
+          return m;
+        })(),
+        premAsc: prem.slice().sort(function (a, b) {
+          return a - b;
+        }),
+        latest: prem[prem.length - 1],
+        latestDate: rows[rows.length - 1][0],
+        first: rows[0][0],
+        n: rows.length
+      };
+    });
+    var codes = funds
+      .map(function (f) {
+        return f.code;
+      })
+      .filter(function (c) {
+        return charts[c];
+      });
+
+    /* 快照里出现但没有序列文件的代码 —— 页面上会静默少一条，这里报一声 */
+    var missing = funds
+      .filter(function (f) {
+        return !charts[f.code];
+      })
+      .map(function (f) {
+        return f.code;
+      });
+
+    if (!codes.length) {
+      el("epChartWrap").hidden = true;
+      var e0 = el("epEmpty");
+      e0.innerHTML = "<b>还没有数据。</b>先在本地跑 <code>python script/etf_premium.py sync</code>，提交后再看。";
+      e0.hidden = false;
+      return;
+    }
+
+    /* ── 时间轴：所有标的取日期并集，一条轴喂给全部 dataset ──
+       这样 tooltip 能一次列出同一天的所有标的（index 模式），
+       没上市/停牌的位置留 null，线自然断开。 */
+    var dayMap = {};
+    codes.forEach(function (c) {
+      charts[c].rows.forEach(function (r) {
+        (dayMap[r[0]] = dayMap[r[0]] || {})[c] = r;
+      });
+    });
+    var dates = Object.keys(dayMap).sort();
+    var xs = dates.map(function (d) {
+      return Date.parse(d);
+    });
+    var dayIndex = {};
+    dates.forEach(function (d, i) {
+      dayIndex[d] = i;
+    });
+    var tsFirst = xs[0];
+    var tsLast = xs[xs.length - 1];
+
+    function seriesData(code) {
+      return dates.map(function (d, i) {
+        var r = dayMap[d][code];
+        /* 缺口写 [x, NaN]：Chart.js 的 parseArrayData 会直接取 data[1]，
+           y 是 NaN 才算「没有值」。写 null 的话 getPixelForValue(null)
+           会按 0 算出坐标，让空点落在 (左边界, y=0)，看着就像凭空一条横线。 */
+        return r ? [xs[i], r[4]] : [xs[i], NaN];
+      });
+    }
+
+    /* ── 页头 ───────────────────────────────────────── */
+    el("epHeadMeta").textContent =
+      codes.length +
+      " 只场内 ETF · 自 " +
+      dates[0] +
+      " 起 · 共 " +
+      dates.length.toLocaleString("en-US") +
+      " 个交易日";
+
+    el("epUpdated").textContent = "更新于 " + dates[dates.length - 1];
+    el("epCount").textContent = codes.length + " 只标的";
+
+    var stale = daysBetween(dates[dates.length - 1], new Date().toISOString().slice(0, 10));
+    if (stale > 20) {
+      var badge = document.createElement("span");
+      badge.className = "ep-stale";
+      badge.textContent = "已有 " + stale + " 天未更新";
+      el("epCount").appendChild(document.createElement("br"));
+      el("epCount").appendChild(badge);
+    }
+
+    if (missing.length) {
+      var banner = el("epBanner");
+      banner.innerHTML =
+        "<b>数据没对上 · 缺序列文件</b>　<code>funds.json</code> 里有这 " +
+        missing.length +
+        " 个代码，但 <code>series/</code> 里没有对应文件：" +
+        missing
+          .map(function (c) {
+            return "<code>" + esc(c) + "</code>";
+          })
+          .join("、") +
+        "。它们不会出现在页面上。本地跑 <code>python script/etf_premium.py sync</code> 补上。";
+      banner.hidden = false;
+    }
+
+    /* ── 总览四数 ───────────────────────────────────── */
+    var latestSorted = codes
+      .map(function (c) {
+        return { code: c, v: charts[c].latest, f: charts[c].fund };
+      })
+      .sort(function (a, b) {
+        return b.v - a.v;
+      });
+    var latestMid = latestSorted[Math.floor(latestSorted.length / 2)].v;
+
+    var allPrem = [];
+    codes.forEach(function (c) {
+      allPrem = allPrem.concat(
+        charts[c].rows.map(function (r) {
+          return r[4];
+        })
+      );
+    });
+    allPrem.sort(function (a, b) {
+      return a - b;
+    });
+    var allMid = allPrem[Math.floor(allPrem.length / 2)];
+
+    /* 9 只当前值各自落在自己历史的什么分位，取中位 —— 一句话回答「现在贵不贵」 */
+    var ranks = codes
+      .map(function (c) {
+        return percentileRank(charts[c].premAsc, charts[c].latest);
+      })
+      .sort(function (a, b) {
+        return a - b;
+      });
+    var rankMid = ranks[Math.floor(ranks.length / 2)];
+
+    el("epStats").innerHTML = [
+      {
+        label: "最新溢价率",
+        value: signedPct(latestMid),
+        sub: codes.length + " 只的中位",
+        cls: tone(latestMid)
+      },
+      {
+        label: "当前最高溢价",
+        value: signedPct(latestSorted[0].v),
+        sub: esc(latestSorted[0].f.name) + " · 最低 " + signedPct(latestSorted[latestSorted.length - 1].v),
+        cls: tone(latestSorted[0].v)
+      },
+      {
+        label: "全历史中位",
+        value: signedPct(allMid),
+        sub: allPrem.length.toLocaleString("en-US") + " 个交易日样本",
+        cls: ""
+      },
+      {
+        label: "当前历史分位",
+        value: (rankMid * 100).toFixed(1) + "%",
+        sub: rankMid > 0.97 ? "处于历史极高位" : "各自历史分位的中位",
+        cls: rankMid >= 0.5 ? "ep-up" : "ep-down"
+      }
+    ]
+      .map(function (s) {
+        return (
+          '<div class="ep-stat">' +
+          '<div class="ep-stat-label">' +
+          s.label +
+          "</div>" +
+          '<div class="ep-stat-value ep-num ' +
+          s.cls +
+          '">' +
+          s.value +
+          "</div>" +
+          '<div class="ep-stat-sub">' +
+          s.sub +
+          "</div>" +
+          "</div>"
+        );
+      })
+      .join("");
+
+    /* ── 主图 ───────────────────────────────────────── */
+    /* 默认只画一只：历史最长的那只（本数据集里就是 513100 纳指ETF国泰）。
+       9 条线铺满整段历史会糊成一团，先给一个看得清的起点，想看别的自己点图例。 */
+    var selected = {};
+    var defaultCode = codes.reduce(function (best, c) {
+      return charts[c].n > charts[best].n ? c : best;
+    }, codes[0]);
+    codes.forEach(function (c) {
+      selected[c] = c === defaultCode;
+    });
+
+    var zeroLinePlugin = {
+      id: "epZeroLine",
+      afterDatasetsDraw: function (chart) {
+        var y = chart.scales.y;
+        if (!y) return;
+        var px = y.getPixelForValue(0);
+        if (px < y.top || px > y.bottom) return;
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = "#cfc7ba";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(chart.chartArea.left, px);
+        ctx.lineTo(chart.chartArea.right, px);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    var RANGES = [
+      { key: "1y", label: "近 1 年", years: 1 },
+      { key: "3y", label: "近 3 年", years: 3 },
+      { key: "5y", label: "近 5 年", years: 5 },
+      { key: "all", label: "全部", years: 0 }
+    ];
+    var activeRange = "1y";
+    var DAY = 86400000;
+
+    /* 「全部」要按**当前选中的**标的算，不能用全球最早那天。
+       否则只看一只 2023 年上市的 ETF 时左边会空出十年 ——
+       那一片空区里只剩网格线，看着就像凭空多出一条横线。 */
+    function visibleSpan() {
+      var first = Infinity;
+      var last = -Infinity;
+      codes.forEach(function (c) {
+        if (!selected[c]) return;
+        first = Math.min(first, Date.parse(charts[c].first));
+        last = Math.max(last, Date.parse(charts[c].latestDate));
+      });
+      if (!isFinite(first) || !isFinite(last)) return { first: tsFirst, last: tsLast };
+      return { first: first, last: last };
+    }
+
+    function rangeFor(key, span) {
+      span = span || visibleSpan();
+      var min = span.first;
+      var r = RANGES.filter(function (x) {
+        return x.key === key;
+      })[0];
+      if (r && r.years) {
+        var d = new Date(span.last);
+        d.setFullYear(d.getFullYear() - r.years);
+        min = Math.max(span.first, d.getTime());
+      }
+      if (min >= span.last) min = span.first;
+      return { min: min, max: span.last };
+    }
+
+    /* 复位按钮只在「视野偏离了当前档位」时出现。
+       由 afterUpdate 插件钩子统一判定，省得自己去接缩放/平移的回调。 */
+    var resetWatcher = {
+      id: "epResetWatch",
+      afterUpdate: function () {
+        syncReset();
+      }
+    };
+
+    function datasets() {
+      return codes
+        .filter(function (c) {
+          return selected[c];
+        })
+        .map(function (c) {
+          return {
+            epCode: c,
+            label: charts[c].fund.name,
+            data: seriesData(c),
+            borderColor: charts[c].color,
+            backgroundColor: charts[c].color,
+            borderWidth: 1.8,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHitRadius: 8,
+            fill: false,
+            tension: 0,
+            spanGaps: false
+          };
+        });
+    }
+
+    var chart = new Chart(el("epChart"), {
+      type: "line",
+      data: { datasets: datasets() },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: {
+            type: "linear",
+            /* min/max 由 applyRange() 明确写死，两边都走同一组数字。
+               交给 bounds:'ticks' 自动算会和档位打架。 */
+            min: rangeFor(activeRange).min,
+            max: rangeFor(activeRange).max,
+            grid: { display: false },
+            border: { color: "#ded8cd" },
+            ticks: {
+              color: "#9a948a",
+              font: { size: 11 },
+              maxRotation: 0,
+              autoSkipPadding: 24,
+              callback: function (v) {
+                return tickDate(v);
+              }
+            }
+          },
+          y: {
+            grid: { color: "#ece6da" },
+            border: { display: false },
+            ticks: {
+              color: "#9a948a",
+              font: { size: 11 },
+              callback: function (v) {
+                return signedPct(v, 0);
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          zoom: {
+            pan: { enabled: true, mode: "x" },
+            zoom: {
+              wheel: { enabled: true, speed: 0.05 },
+              pinch: { enabled: true },
+              mode: "x"
+            },
+            /* 平移/缩放的边界跟着「当前选了哪些标的」走，
+               不然只看一只时滚轮往外一缩，又把十年空白拉回来了 */
+            limits: {
+              x: {
+                min: visibleSpan().first,
+                max: visibleSpan().last,
+                minRange: 14 * DAY
+              }
+            }
+          },
+          tooltip: {
+            /* 只列「当天确实有数据」的标的，没上市的不会冒出来一行 ——— */
+            filter: function (item) {
+              var d = dates[item.dataIndex];
+              return !!(d && dayMap[d][item.dataset.epCode]);
+            },
+            callbacks: {
+              title: function (items) {
+                return items.length ? dates[items[0].dataIndex] : "";
+              },
+              label: function (ctx) {
+                var row = dayMap[dates[ctx.dataIndex]][ctx.dataset.epCode];
+                return [
+                  " " + ctx.dataset.label + "　" + signedPct(row[4]),
+                  "　　收盘 " + row[1] + " / 净值 " + row[3] + "（" + row[2] + "）"
+                ];
+              }
+            }
+          }
+        }
+      },
+      plugins: [zeroLinePlugin, resetWatcher]
+    });
+
+    function syncReset() {
+      var btn = el("epReset");
+      /* resetWatcher 的 afterUpdate 会在 new Chart() 的首次更新里就触发，
+         那时候 `chart` 还没赋值（var 提升成 undefined），必须挡一下 ——
+         否则异常会打断整个 IIFE，图例/卡片全渲染不出来 */
+      if (!btn || !chart || !chart.scales || !chart.scales.x) return;
+      /* 比的是 scale.options 里的**目标值**，不是 scale.min/max。
+         档位/缩放都走 options（缩放插件也是写 scale.options.min/max），
+         而 scale.min/max 在 300ms 补间动画期间是中间态 —— 读它会慢一拍。
+         hidden 的判定：**正好停在档位范围上才藏起来**（差值在 1 天内）。
+         之前写成了 > DAY，等于「一偏离档位就藏、贴着档位反而露」——反了。 */
+      var o = chart.scales.x.options || {};
+      var want = rangeFor(activeRange);
+      var curMin = o.min;
+      var curMax = o.max;
+      if (curMin == null || curMax == null) return;
+      var atPreset =
+        Math.abs(curMin - want.min) <= DAY && Math.abs(curMax - want.max) <= DAY;
+      btn.hidden = atPreset;
+    }
+
+    /* 图例：一排可点的胶囊，比 Chart.js 自带图例更贴站点样式，
+       也让「9 条线里现在画了哪几条」一眼可见 */
+    function renderChips() {
+      el("epChips").innerHTML = codes
+        .map(function (c) {
+          var s = charts[c];
+          return (
+            '<button type="button" class="ep-chip" data-code="' +
+            c +
+            '" aria-pressed="' +
+            (selected[c] ? "true" : "false") +
+            '" title="' +
+            esc(s.fund.name + " · " + s.fund.manager) +
+            '">' +
+            '<span class="ep-dot" style="background:' +
+            s.color +
+            '"></span>' +
+            '<span class="ep-chip-code ep-num">' +
+            c +
+            "</span>" +
+            '<span class="ep-chip-name">' +
+            esc(s.fund.name) +
+            "</span>" +
+            "</button>"
+          );
+        })
+        .join("");
+    }
+
+    function renderRanges() {
+      el("epRanges").innerHTML = RANGES.map(function (r) {
+        return (
+          '<button type="button" class="ep-dim" data-range="' +
+          r.key +
+          '" aria-pressed="' +
+          (r.key === activeRange ? "true" : "false") +
+          '">' +
+          r.label +
+          "</button>"
+        );
+      }).join("");
+    }
+
+    /* 换档位：直接改 scales.x.min/max 再 update，不走 chart.zoomScale()。
+       zoomScale 拿「当前 scale 范围」当基准换算百分比，而换标的之后新的数据
+       范围要等 update 才生效 —— 于是横轴刻度和点落在两套范围上，看起来就是
+       「轴和密度对不上」，滑一下或再切一次档位才自愈。 */
+    function applyRange(key) {
+      activeRange = key;
+      var span = visibleSpan();
+      var want = rangeFor(key, span);
+      var lim = chart.options.plugins.zoom.limits.x;
+      lim.min = span.first;
+      lim.max = span.last;
+      chart.options.scales.x.min = want.min;
+      chart.options.scales.x.max = want.max;
+      chart.update();
+      renderRanges();
+    }
+
+    /* 就地改 aria-pressed，不要重建 innerHTML——
+       重建会把刚点的那个按钮换成新节点，焦点和 :focus-visible 都丢了 */
+    function updateChipStates() {
+      [].forEach.call(el("epChips").querySelectorAll(".ep-chip"), function (b) {
+        b.setAttribute("aria-pressed", selected[b.getAttribute("data-code")] ? "true" : "false");
+      });
+    }
+
+    /* 选中集合变了：重画数据集，再按新集合重算档位（「全部」尤其要重算） */
+    function refreshSelection() {
+      chart.data.datasets = datasets();
+      updateChipStates();
+      updateChartHint();
+      applyRange(activeRange);
+    }
+
+    el("epChips").addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".ep-chip") : null;
+      if (!b) return;
+      var c = b.getAttribute("data-code");
+      /* 至少留一条线，否则图会空掉 */
+      var on = codes.filter(function (x) {
+        return selected[x];
+      });
+      if (selected[c] && on.length === 1) return;
+      selected[c] = !selected[c];
+      refreshSelection();
+    });
+
+    el("epRanges").addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".ep-dim") : null;
+      if (b) applyRange(b.getAttribute("data-range"));
+    });
+
+    function updateChartHint() {
+      var on = codes.filter(function (x) {
+        return selected[x];
+      }).length;
+      el("epChartHint").textContent =
+        on === 1 ? "只画了 1 只 · 点下面图例叠加对比" : "已选 " + on + " / " + codes.length + " 只";
+    }
+
+    /* 复位 = 回到当前档位（不是回到「全部」）：档位是用户自己挑的 */
+    function resetZoom() {
+      applyRange(activeRange);
+    }
+
+    el("epReset").addEventListener("click", resetZoom);
+    el("epChart").addEventListener("dblclick", resetZoom);
+
+    renderChips();
+    renderRanges();
+    updateChartHint();
+    /* 建图时已经带了 min/max，这里再走一遍把缩放边界对齐到当前选中集合 */
+    applyRange(activeRange);
+
+    /* ── 当前一览卡片 ───────────────────────────────── */
+    /* 迷你走势只看最近一年：这是「现在贵不贵」最相关的一段 */
+    var oneYearAgo = (function () {
+      var d = new Date(tsLast);
+      d.setFullYear(d.getFullYear() - 1);
+      return d.getTime();
+    })();
+    var cardCharts = [];
+
+    el("epCards").innerHTML = funds
+      .map(function (f) {
+        var s = charts[f.code];
+        if (!s) return "";
+        var rank = percentileRank(s.premAsc, s.latest);
+        var hot = rank >= 0.95;
+        return (
+          '<article class="ep-card" role="button" tabindex="0" data-code="' +
+          f.code +
+          '" aria-label="只看 ' +
+          esc(f.name) +
+          '">' +
+          '<div class="ep-card-top">' +
+          '<span class="ep-card-name" title="' +
+          esc(f.name) +
+          '">' +
+          esc(f.name) +
+          "</span>" +
+          '<span class="ep-card-code ep-num">' +
+          f.code +
+          "</span>" +
+          "</div>" +
+          '<div class="ep-card-nums">' +
+          '<span class="ep-card-value ep-num ' +
+          tone(s.latest) +
+          '">' +
+          signedPct(s.latest) +
+          "</span>" +
+          '<span class="ep-tag' +
+          (hot ? " ep-tag--hot" : "") +
+          '">分位 ' +
+          (rank * 100).toFixed(0) +
+          "%</span>" +
+          "</div>" +
+          '<div class="ep-card-spark"><canvas id="epSpark-' +
+          f.code +
+          '" aria-label="' +
+          esc(f.name) +
+          ' 近一年溢价率"></canvas></div>' +
+          '<div class="ep-card-foot">' +
+          "<span>上市 " +
+          s.first +
+          "</span>" +
+          "<span>" +
+          s.n.toLocaleString("en-US") +
+          " 个交易日</span>" +
+          "<span>中位 " +
+          signedPct(s.premAsc[Math.floor(s.n / 2)]) +
+          "</span>" +
+          "</div>" +
+          "</article>"
+        );
+      })
+      .join("");
+
+    funds.forEach(function (f) {
+      var s = charts[f.code];
+      if (!s) return;
+      var recent = s.rows.filter(function (r) {
+        return Date.parse(r[0]) >= oneYearAgo;
+      });
+      if (recent.length < 2) recent = s.rows.slice(-60);
+      cardCharts.push(
+        new Chart(el("epSpark-" + f.code), {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                data: recent.map(function (r) {
+                  return [Date.parse(r[0]), r[4]];
+                }),
+                borderColor: s.color,
+                borderWidth: 1.6,
+                pointRadius: 0,
+                pointHitRadius: 8,
+                pointHoverRadius: 3,
+                fill: true,
+                backgroundColor: alpha(s.color, 0.13),
+                tension: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            interaction: { mode: "nearest", intersect: false },
+            layout: { padding: { top: 4, right: 2, bottom: 0, left: 2 } },
+            scales: {
+              x: { type: "linear", display: false },
+              /* 每张卡各自缩放：这里只表现形状，数值大小由上方的大字负责 */
+              y: { type: "linear", display: false }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  title: function (items) {
+                    return shortDate(items[0].parsed.x);
+                  },
+                  label: function (ctx) {
+                    return " 溢价 " + signedPct(ctx.parsed.y);
+                  }
+                }
+              }
+            }
+          }
+        })
+      );
+    });
+
+    /* 点卡片 = 只看这一只。**档位不动** —— 档位是用户自己挑的，
+       跟着卡片跳来跳去反而晕；想看这只的完整历史点「全部」就行。 */
+    function isolate(code) {
+      codes.forEach(function (c) {
+        selected[c] = c === code;
+      });
+      refreshSelection();
+      if (typeof el("epChart").scrollIntoView === "function") {
+        el("epChart").scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    el("epCards").addEventListener("click", function (e) {
+      var card = e.target && e.target.closest ? e.target.closest(".ep-card") : null;
+      if (card) isolate(card.getAttribute("data-code"));
+    });
+    el("epCards").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      var card = e.target && e.target.closest ? e.target.closest(".ep-card") : null;
+      if (!card) return;
+      e.preventDefault();
+      isolate(card.getAttribute("data-code"));
+    });
+
+    /* ── 逐只统计表 ─────────────────────────────────── */
+    var maxRank = 0;
+    var statRows = funds
+      .filter(function (f) {
+        return charts[f.code];
+      })
+      .map(function (f) {
+        var s = charts[f.code];
+        var rank = percentileRank(s.premAsc, s.latest);
+        maxRank = Math.max(maxRank, rank);
+        return {
+          f: f,
+          s: s,
+          rank: rank,
+          mid: s.premAsc[Math.floor(s.n / 2)],
+          p95: s.premAsc[Math.min(s.n - 1, Math.floor(s.n * 0.95))],
+          max: s.premAsc[s.n - 1],
+          min: s.premAsc[0]
+        };
+      })
+      .sort(function (a, b) {
+        return b.s.latest - a.s.latest;
+      });
+
+    el("epStatMeta").textContent = statRows.length + " 只 · 按最新溢价排序";
+
+    el("epStatBody").innerHTML = statRows
+      .map(function (r) {
+        var w = maxRank ? (r.rank / maxRank) * 100 : 0;
+        return (
+          "<tr>" +
+          '<td class="ep-cell-name">' +
+          '<span class="ep-name">' +
+          esc(r.f.name) +
+          '</span><span class="ep-code ep-num">' +
+          r.f.code +
+          "</span>" +
+          '<span class="ep-sub">' +
+          esc(r.f.manager || "") +
+          " · " +
+          esc(r.s.fund.exchange || "") +
+          "</span></td>" +
+          '<td class="ep-num ' +
+          tone(r.s.latest) +
+          '">' +
+          signedPct(r.s.latest) +
+          "</td>" +
+          '<td class="ep-num"><span class="ep-rank">' +
+          '<span class="ep-rank-track"><span class="ep-rank-fill" style="width:' +
+          (w < 3 ? 3 : w).toFixed(1) +
+          '%"></span></span><span>' +
+          (r.rank * 100).toFixed(1) +
+          "%</span></span></td>" +
+          '<td class="ep-num">' +
+          signedPct(r.mid) +
+          "</td>" +
+          '<td class="ep-num">' +
+          signedPct(r.p95) +
+          "</td>" +
+          '<td class="ep-num ep-up">' +
+          signedPct(r.max) +
+          "</td>" +
+          '<td class="ep-num ep-down">' +
+          signedPct(r.min) +
+          "</td>" +
+          '<td class="ep-num ep-muted">' +
+          r.s.first +
+          "</td>" +
+          '<td class="ep-num ep-muted">' +
+          r.s.n.toLocaleString("en-US") +
+          "</td>" +
+          "</tr>"
+        );
+      })
+      .join("");
+
+    /* ── 年度均值矩阵 ───────────────────────────────── */
+    var years = {};
+    codes.forEach(function (c) {
+      charts[c].rows.forEach(function (r) {
+        var y = r[0].slice(0, 4);
+        (years[y] = years[y] || {})[c] = years[y][c] || [];
+        years[y][c].push(num(r[4]));
+      });
+    });
+    var yearKeys = Object.keys(years).sort();
+
+    el("epYearMeta").textContent = yearKeys.length + " 个年份 · 空格 = 当时还没上市";
+
+    el("epYearHead").innerHTML =
+      '<tr><th scope="col" class="ep-sticky">年份</th>' +
+      codes
+        .map(function (c) {
+          return (
+            '<th scope="col" title="' +
+            esc(charts[c].fund.name) +
+            '">' +
+            c +
+            "</th>"
+          );
+        })
+        .join("") +
+      "</tr>";
+
+    el("epYearBody").innerHTML = yearKeys
+      .map(function (y) {
+        return (
+          '<tr><td class="ep-num ep-sticky">' +
+          y +
+          "</td>" +
+          codes
+            .map(function (c) {
+              var v = years[y][c];
+              if (!v || !v.length) return '<td class="ep-muted">—</td>';
+              var sum = 0;
+              var n = 0;
+              v.forEach(function (x) {
+                if (isFinite(x)) {
+                  sum += x;
+                  n += 1;
+                }
+              });
+              if (!n) return '<td class="ep-muted">—</td>';
+              var mean = sum / n;
+              return '<td class="ep-num ' + tone(mean) + '">' + signedPct(mean) + "</td>";
+            })
+            .join("") +
+          "</tr>"
+        );
+      })
+      .join("");
+  })();
+</script>

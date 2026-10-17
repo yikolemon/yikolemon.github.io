@@ -1,0 +1,11 @@
+[
+  { "code": "513100", "exchange": "SH", "name": "纳指ETF国泰",     "manager": "国泰基金",   "tracking": "纳斯达克100" },
+  { "code": "159941", "exchange": "SZ", "name": "纳指ETF广发",     "manager": "广发基金",   "tracking": "纳斯达克100" },
+  { "code": "513300", "exchange": "SH", "name": "纳斯达克ETF华夏", "manager": "华夏基金",   "tracking": "纳斯达克100" },
+  { "code": "159632", "exchange": "SZ", "name": "纳斯达克ETF华安", "manager": "华安基金",   "tracking": "纳斯达克100" },
+  { "code": "513110", "exchange": "SH", "name": "纳指ETF华泰柏瑞", "manager": "华泰柏瑞基金", "tracking": "纳斯达克100" },
+  { "code": "159501", "exchange": "SZ", "name": "纳指ETF嘉实",     "manager": "嘉实基金",   "tracking": "纳斯达克100" },
+  { "code": "513390", "exchange": "SH", "name": "纳指100ETF博时",  "manager": "博时基金",   "tracking": "纳斯达克100" },
+  { "code": "159659", "exchange": "SZ", "name": "纳斯达克100ETF招商", "manager": "招商基金", "tracking": "纳斯达克100" },
+  { "code": "159696", "exchange": "SZ", "name": "纳指ETF易方达",   "manager": "易方达基金", "tracking": "纳斯达克100" }
+]
