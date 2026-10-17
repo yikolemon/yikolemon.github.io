@@ -1,0 +1,110 @@
+name: 更新 ETF 溢价率数据
+
+on:
+  # A 股 15:00 收盘 = 07:00 UTC；QDII 的净值(T-1) 一般要到当晚才出。
+  # 14:00 UTC（22:00 CST）抓一次，16:00 UTC 再兜一次。
+  # 漏掉的日子不用管：sync 是增量的，下次跑会把缺的补回来。
+  schedule:
+    - cron: '0 14,16 * * 1-5'
+  # 也能在 Actions 页面手动点一下，先试跑确认 runner 连得上腾讯/东财
+  workflow_dispatch:
+
+# 仓库根就是 Jekyll 站点，Pages 走的是「Deploy from a branch」，
+# push 上去就会自动重新构建，所以这里不需要额外部署步骤。
+permissions:
+  contents: write
+  pages: write
+
+# 两次 cron 贴得近，别让上一轮还没跑完就被下一轮插进来
+concurrency:
+  group: etf-premium-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 纯标准库，没有第三方依赖，所以不需要 pip install
+      - name: 抓取（失败重试 3 轮）
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            echo "::group::sync 第 $i 轮"
+            if python script/etf_premium.py sync; then
+              echo "::endgroup::"
+              break
+            fi
+            echo "::endgroup::"
+            if [ "$i" = "3" ]; then
+              echo "::error::sync 连续 3 轮失败"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      # 抓坏了就别提交：check 会把空序列、日期乱序、溢价率对不上一一挑出来
+      - name: 校验
+        run: python script/etf_premium.py check
+
+      # script 里的 per-file 护栏之外再加一道总闸：
+      # 抓取失手时行数会变少，这种一律不提交
+      - name: 行数不许倒退
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, json, subprocess, sys
+
+          total_new = 0
+          total_old = 0
+          for path in sorted(glob.glob("_data/etf_premium/series/*.json")):
+              with open(path, encoding="utf-8") as fh:
+                  total_new += len(json.load(fh)["rows"])
+              r = subprocess.run(["git", "show", "HEAD:" + path],
+                                 capture_output=True, text=True)
+              if r.returncode == 0:
+                  total_old += len(json.loads(r.stdout)["rows"])
+
+          print("序列总行数：%d → %d" % (total_old, total_new))
+          if total_new < total_old:
+              sys.exit("::error::总行数变少了 %d 行，拒绝提交" % (total_old - total_new))
+          PY
+
+      - name: 有新增数据才提交
+        id: commit
+        run: |
+          set -euo pipefail
+          # series 里每次都会把 updated 写成当天 —— 那不算数据变化，
+          # 不过滤掉的话每天都会多出一个空提交
+          if ! git diff -U0 -- _data/etf_premium \
+               | grep -E '^[+-]' \
+               | grep -vE '^(\+\+\+|---)' \
+               | grep -v '"updated":' \
+               | grep -q . ; then
+            echo "没有新增数据，跳过提交。"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add _data/etf_premium
+          git commit -m "chore(溢价率): 每日增量更新 $(date -u +%F)"
+          git push
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          # 主站是 branch 模式的 Pages，push 本身就会触发构建。
+          # 这里再显式点一次做兜底；万一仓库以后改成 workflow 模式，
+          # 这个接口会 404/409，忽略即可。
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages/builds" || true)
+          echo "手动触发 Pages 构建返回：$code（404/409 表示不需要，正常）"
