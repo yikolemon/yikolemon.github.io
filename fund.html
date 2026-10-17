@@ -701,9 +701,9 @@ permalink: /fund/
     padding-right: 1.25rem;
   }
 
-  /* 快照表的「备注」列也是文字，靠左 */
-  .main-content #fdSnapsTable th:nth-child(2),
-  .main-content #fdSnapsTable td:nth-child(2) {
+  /* 快照表的「备注」列：文字靠左（已挪到最后一列） */
+  .main-content .fd-table th.fd-note,
+  .main-content .fd-table td.fd-note {
     padding-left: 0.6rem;
     text-align: left;
   }
@@ -1126,11 +1126,11 @@ permalink: /fund/
         <thead>
           <tr>
             <th scope="col">日期</th>
-            <th scope="col">备注</th>
             <th scope="col">累计投入</th>
             <th scope="col">当前市值</th>
             <th scope="col">累计收益</th>
             <th scope="col">收益率</th>
+            <th scope="col" class="fd-note">备注</th>
           </tr>
         </thead>
         <tbody id="fdSnapsBody"></tbody>
@@ -2037,9 +2037,9 @@ permalink: /fund/
       "<th scope=\"col\">收益率</th><th scope=\"col\">占比</th></tr>";
 
     var HISTORY_TABLE_HEAD =
-      "<tr><th scope=\"col\">日期</th><th scope=\"col\">备注</th>" +
-      "<th scope=\"col\">累计投入</th><th scope=\"col\">当前市值</th>" +
-      "<th scope=\"col\">累计收益</th><th scope=\"col\">收益率</th></tr>";
+      "<tr><th scope=\"col\">日期</th><th scope=\"col\">累计投入</th>" +
+      "<th scope=\"col\">当前市值</th><th scope=\"col\">累计收益</th>" +
+      "<th scope=\"col\">收益率</th><th scope=\"col\" class=\"fd-note\">备注</th></tr>";
 
     /* 单只基金的历次快照（浮层在「按单只基金」时用它代替只有一行的组内表） */
     function historyRowsHtml(id) {
@@ -2051,13 +2051,13 @@ permalink: /fund/
           return (
             "<tr>" +
             '<td class="fd-num">' + shortDateFull(s.date) + "</td>" +
-            '<td class="fd-muted">' + (s.note || "—") + "</td>" +
             '<td class="fd-num">' + money(st.invested) + "</td>" +
             '<td class="fd-num">' + money(st.value) + "</td>" +
             '<td class="fd-num ' + tone(profit) + '">' + signedMoney(profit) + "</td>" +
             '<td class="fd-num ' + tone(profit) + '">' +
             signedPct(st.invested ? profit / st.invested : 0) +
-            "</td></tr>"
+            "</td>" +
+            '<td class="fd-muted fd-note">' + (s.note || "—") + "</td></tr>"
           );
         })
         .join("");
@@ -2458,9 +2458,6 @@ permalink: /fund/
             '<td class="fd-num">' +
             shortDateFull(t.date) +
             "</td>" +
-            '<td class="fd-muted">' +
-            (t.note || "—") +
-            "</td>" +
             '<td class="fd-num">' +
             money(t.invested) +
             "</td>" +
@@ -2476,6 +2473,9 @@ permalink: /fund/
             tone(t.profit) +
             '">' +
             signedPct(t.invested ? t.profit / t.invested : 0) +
+            "</td>" +
+            '<td class="fd-muted fd-note">' +
+            (t.note || "—") +
             "</td>" +
             "</tr>"
           );
