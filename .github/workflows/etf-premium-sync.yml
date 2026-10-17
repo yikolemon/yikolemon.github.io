@@ -1,3 +1,14 @@
+# 抓数据 + 低溢价邮件告警。
+#
+# 需要在仓库里配的 secrets（Settings → Secrets and variables → Actions）：
+#   SMTP_USER  QQ 邮箱完整地址，如 12345@qq.com
+#   SMTP_PASS  QQ 邮箱的「SMTP 授权码」（16 位字母），注意不是 QQ 登录密码
+#   SMTP_TO    收信地址，留空则发给 SMTP_USER
+#   SMTP_HOST  留空则用 smtp.qq.com
+#   SMTP_PORT  留空则用 465（465=SSL，587=STARTTLS，其余走明文）
+# 只配了 USER/PASS 也能跑；没配的话告警那步会失败，但不会影响数据提交。
+#
+# 想验证邮箱配好没有：Actions 页面点 Run workflow，勾上「只发测试信」。
 name: 更新 ETF 溢价率数据
 
 on:
@@ -6,8 +17,14 @@ on:
   # 漏掉的日子不用管：sync 是增量的，下次跑会把缺的补回来。
   schedule:
     - cron: '0 14,16 * * 1-5'
-  # 也能在 Actions 页面手动点一下，先试跑确认 runner 连得上腾讯/东财
+  # 也能在 Actions 页面手动点一下，先试跑确认 runner 连得上腾讯/东财；
+  # 勾上「只发测试信」则只验 SMTP，不改数据
   workflow_dispatch:
+    inputs:
+      test_mail:
+        description: '只发一封 SMTP 测试信（验证邮箱配置），不判断溢价率'
+        type: boolean
+        default: false
 
 # 仓库根就是 Jekyll 站点，Pages 走的是「Deploy from a branch」，
 # push 上去就会自动重新构建，所以这里不需要额外部署步骤。
@@ -76,12 +93,43 @@ jobs:
               sys.exit("::error::总行数变少了 %d 行，拒绝提交" % (total_old - total_new))
           PY
 
+      # 低溢价告警（邮件）。三件事想清楚：
+      #   1. 阈值在这里调，不用改代码：EP_ALERT_WINDOW 分位窗口、EP_ALERT_PCT 分位档位、
+      #      EP_ALERT_COOLDOWN 冷却天数。默认 = 近 3 年后 20% 分位 + 15 天冷却，
+      #      按 513100 十三年的历史回放约 17.7 天/年会收到邮件（9 只汇总成一封）。
+      #   2. 邮件是「附加动作」，发不出去不该拖累数据提交 → continue-on-error。
+      #   3. 状态文件只在邮件真的发出去之后才写。发信失败不会留下「通知过了」的痕迹，
+      #      下一次跑会重来 —— 宁可重复也不能漏。
+      - name: 低溢价告警
+        continue-on-error: true
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_TO: ${{ secrets.SMTP_TO }}
+          EP_ALERT_WINDOW: '750'
+          EP_ALERT_PCT: '0.20'
+          EP_ALERT_COOLDOWN: '15'
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.test_mail }}" = "true" ]; then
+            echo "手动勾了「只发测试信」，跳过判断直接试发"
+            python script/etf_premium_alert.py test-mail
+          else
+            python script/etf_premium_alert.py send
+          fi
+
       - name: 有新增数据才提交
         id: commit
         run: |
           set -euo pipefail
-          # series 里每次都会把 updated 写成当天 —— 那不算数据变化，
-          # 不过滤掉的话每天都会多出一个空提交
+          # 有变化才提交：series 里每次都会把 updated 写成当天 —— 那不算数据变化，
+          # 不过滤掉的话每天都会多出一个空提交。
+          # git add -N 是为了让「还没被跟踪的 alert_state.json」也进入 diff，
+          # 否则「数据没动、只有告警状态动了」那一天会漏提交，
+          # 下次跑就会因为状态没落盘而重复发信。
+          git add -N _data/etf_premium 2>/dev/null || true
           if ! git diff -U0 -- _data/etf_premium \
                | grep -E '^[+-]' \
                | grep -vE '^(\+\+\+|---)' \
