@@ -262,6 +262,17 @@ def cmd_sync(codes, rebuild=False):
         rows = build_rows(prices, navs)
         fresh = len(set(navs) - set(cache))
 
+        # 别让一次抓取失手把攒下来的历史覆盖掉。
+        # build_rows 对同一批输入是确定的，而净值集合只会变大（增量缓存 + 新页），
+        # 所以行数**只应该增长或持平**。变少一定是数据源没抓全（接口返回了 200
+        # 但内容空/只给了一页）—— 这时候宁可这一只不写，也不要写坏。
+        old_rows = old.get("rows") or []
+        if old_rows and len(rows) < len(old_rows):
+            warn("%s：这次只算出 %d 行，比已有的 %d 行少，八成是数据源没抓全 —— "
+                 "这一只先不写（确认要全量重抓就用 rebuild %s）"
+                 % (code, len(rows), len(old_rows), code))
+            continue
+
         live = fetch_name(exch, code)
         if not live:
             warn("%s 在行情接口查不到，代码写错了吗？" % code)
