@@ -161,11 +161,16 @@ a {
 }
 
 .tool-thread {
+  display: grid;
+  gap: 0.8rem;
   margin-top: 2.6rem;
 }
 
-.tool-thread__label {
-  margin: 0 0 0.7rem;
+/* 选择器要盖过 .main-content p 的 margin-bottom: 1em（0,1,1 > 0,1,0），
+   所以这里多带一层 .tool-thread —— 标签到第一张卡片的间距交给 grid gap，
+   和卡片之间的间距保持一致 */
+.tool-thread .tool-thread__label {
+  margin: 0;
   color: var(--muted);
   font-family: var(--font-sans);
   font-size: 0.76rem;

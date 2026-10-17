@@ -33,4 +33,13 @@ layout: default
       <span class="post-meta">持仓 · 收益 · 走势</span>
     </div>
   </article>
+  <article class="post-card">
+    <div class="post-header">
+      <div>
+        <p class="post-kicker">Data</p>
+        <h2 class="post-title"><a href="{{ '/etf-premium/' | relative_url }}">纳指100 ETF 溢价率</a></h2>
+      </div>
+      <span class="post-meta">历史溢价 · 分位 · 走势</span>
+    </div>
+  </article>
 </section>
