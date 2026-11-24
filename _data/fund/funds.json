@@ -12,5 +12,12 @@
   { "id": "guangfa_nasdaq100_zx", "name": "广发纳斯达克100ETF联接(QDII)A（直销）", "code": "270042", "venue": "场外", "channel": "场外直销", "platform": "广发基金", "tracking": "纳斯达克100", "category": "QDII指数" },
   { "id": "guangfa_nasdaq100_f", "name": "广发纳斯达克100ETF联接(QDII)F", "code": "021778", "venue": "场外", "channel": "场外直销", "platform": "广发基金", "tracking": "纳斯达克100", "category": "QDII指数" },
   { "id": "nanfang_nasdaq100_i", "name": "南方纳斯达克100指数发起(QDII)I", "code": "021000", "venue": "场外", "channel": "场外直销", "platform": "南方基金", "tracking": "纳斯达克100", "category": "QDII指数" },
-  { "id": "huaan_nasdaq100_etf", "name": "华安纳斯达克100ETF(QDII)", "code": "159632", "venue": "场内", "channel": "场内", "platform": "国信证券", "tracking": "纳斯达克100", "category": "ETF" }
+  { "id": "huaan_nasdaq100_etf", "name": "华安纳斯达克100ETF(QDII)", "code": "159632", "venue": "场内", "channel": "场内", "platform": "国信证券", "tracking": "纳斯达克100", "category": "ETF" },
+  { "id": "wanjia_nasdaq100", "name": "万家纳斯达克100指数发起式(QDII)A", "code": "", "venue": "场外", "channel": "场外分销", "platform": "支付宝", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "wanjia_nasdaq100_zx", "name": "万家纳斯达克100指数发起式(QDII)A（直销）", "code": "", "venue": "场外", "channel": "场外直销", "platform": "万家基金", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "jianxin_nasdaq100", "name": "建信纳斯达克100指数(QDII)A人民币", "code": "", "venue": "场外", "channel": "场外分销", "platform": "支付宝", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "jianxin_nasdaq100_zx", "name": "建信纳斯达克100指数(QDII)A人民币（直销）", "code": "", "venue": "场外", "channel": "场外直销", "platform": "建信基金", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "nanfang_nasdaq100_a_zx", "name": "南方纳斯达克100指数发起(QDII)A（直销）", "code": "016452", "venue": "场外", "channel": "场外直销", "platform": "南方基金", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "tianhong_nasdaq100_d", "name": "天弘纳斯达克100指数发起(QDII)D", "code": "", "venue": "场外", "channel": "场外分销", "platform": "京东金融", "tracking": "纳斯达克100", "category": "QDII指数" },
+  { "id": "tianhong_sp500_d", "name": "天弘标普500发起(QDII-FOF)D", "code": "", "venue": "场外", "channel": "场外分销", "platform": "京东金融", "tracking": "标普500", "category": "QDII指数" }
 ]

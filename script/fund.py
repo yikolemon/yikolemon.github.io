@@ -11,6 +11,7 @@ check 专门抓那些「不报错但数据不对」的问题——尤其是 id �
 
 import difflib
 import json
+import math
 import os
 import re
 import sys
@@ -56,7 +57,7 @@ def rel(path):
 
 
 def is_number(x):
-    return isinstance(x, (int, float)) and not isinstance(x, bool)
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
 # ── 基金档案 ──────────────────────────────────────────────────────────
@@ -124,7 +125,10 @@ def read_snapshots():
         if not isinstance(holdings, list):
             bad("snapshots/%s：缺少 holdings 数组" % name)
             continue
-        snaps.append({"file": name, "date": date, "note": body.get("note", ""), "holdings": holdings})
+        snaps.append({
+            "file": name, "date": date, "note": body.get("note", ""),
+            "holdings": holdings, "realized": body.get("realized", {}),
+        })
     snaps.sort(key=lambda s: s["date"])
     return snaps
 
@@ -133,6 +137,19 @@ def check_snapshot(snap, prev, ids):
     label = "snapshots/" + snap["file"]
     seen = set()
     unknown = 0
+    realized = snap["realized"]
+    if not isinstance(realized, dict):
+        bad("%s：realized 应该是基金 id 到累计已实现收益的对象" % label)
+        realized = {}
+    for fid, amount in realized.items():
+        if fid not in ids:
+            bad('%s：realized 的 id "%s" 不在 funds.json 里%s' % (label, fid, suggest(fid, ids)))
+        if not is_number(amount):
+            bad('%s：realized「%s」不是有限数字（%r）' % (label, fid, amount))
+    if prev and isinstance(prev["realized"], dict):
+        for fid in prev["realized"]:
+            if fid not in realized:
+                bad('%s：realized 遗漏了「%s」，已实现收益必须保留到后续快照' % (label, fid))
 
     for h in snap["holdings"]:
         if not isinstance(h, dict):
@@ -216,6 +233,8 @@ def cmd_check():
         used = set()
         for s in snaps:
             used.update(h.get("id") for h in s["holdings"] if isinstance(h, dict))
+            if isinstance(s["realized"], dict):
+                used.update(s["realized"])
         unused = [i for i in ids if i not in used]
         if unused:
             warn("funds.json 里有 %d 只基金从没在任何快照里出现过：" % len(unused))
@@ -283,6 +302,7 @@ def cmd_new(date):
             for h in last["holdings"]
             if isinstance(h, dict) and h.get("id") in known
         ],
+        "realized": last["realized"],
     }
     with open(dest, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(body, ensure_ascii=False, indent=2) + "\n")

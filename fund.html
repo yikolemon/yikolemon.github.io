@@ -34,10 +34,13 @@ permalink: /fund/
        note      备注，可留空
        holdings[]  只写「当前有持仓」的基金，两个数字即可
          id        对应 funds.json 里的 id
-         invested  该基金当前的【累计投入】
+          invested  该基金当前剩余持仓的【成本】，卖出时扣除对应成本
          value     该基金当前的【市值】
 
-   份额、收益、收益率、占比、变化 全部由页面自动计算，不用填。
+        realized  可选对象：基金 id → 截至本次的累计已实现收益（可为负数）。
+                  卖出净到账减对应成本，现金分红也计入；不是本期增量。
+                  后续快照必须保留，即使该基金已经清仓。
+   持仓收益 = 市值 − 持仓成本；累计收益 = 持仓收益 + 已实现收益。
    某次快照里没有出现的基金 = 当时未持有；下次出现即为「新建仓」。
    页面只展示最近一次快照的持仓明细。
 
@@ -312,10 +315,10 @@ permalink: /fund/
     outline-offset: 1px;
   }
 
-  /* ── 总览四数 ───────────────────────────────────────── */
+  /* ── 总览 ───────────────────────────────────────── */
   .fd-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 0.75rem;
     margin-top: 1.5rem;
   }
@@ -1106,10 +1109,10 @@ permalink: /fund/
         <thead>
           <tr>
             <th scope="col">基金</th>
-            <th scope="col">累计投入</th>
+            <th scope="col">持仓成本</th>
             <th scope="col">当前市值</th>
-            <th scope="col">累计收益</th>
-            <th scope="col">收益率</th>
+            <th scope="col">持仓收益</th>
+            <th scope="col">持仓收益率</th>
             <th scope="col">占比</th>
           </tr>
         </thead>
@@ -1126,14 +1129,26 @@ permalink: /fund/
         <thead>
           <tr>
             <th scope="col">日期</th>
-            <th scope="col">累计投入</th>
+            <th scope="col">持仓成本</th>
             <th scope="col">当前市值</th>
+            <th scope="col">持仓收益</th>
+            <th scope="col">已实现收益</th>
             <th scope="col">累计收益</th>
-            <th scope="col">收益率</th>
+            <th scope="col">持仓收益率</th>
             <th scope="col" class="fd-note">备注</th>
           </tr>
         </thead>
         <tbody id="fdSnapsBody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="fd-detail" id="fdRealizedDetail" hidden>
+    <summary>已实现收益明细</summary>
+    <div class="fd-table-wrap">
+      <table class="fd-table">
+        <thead><tr><th scope="col">基金</th><th scope="col">状态</th><th scope="col">累计已实现收益</th></tr></thead>
+        <tbody id="fdRealizedBody"></tbody>
       </table>
     </div>
   </details>
@@ -1144,8 +1159,11 @@ permalink: /fund/
       <ul>
         <li><b>场内</b>按当日收盘市价计市值（可能与基金净值存在溢价/折价）；<b>场外</b>按最新确认净值计。</li>
         <li>场外基金 T+1 确认份额，<b>QDII 净值滞后 1–3 天</b>，且受汇率影响，因此数据天然存在小幅时滞。</li>
-        <li>市值与投入均<b>不扣减申赎费、佣金</b>；实际到手收益会略低于页面数值。</li>
-        <li>页面收益为<b>累计收益</b>（市值 − 累计投入）。持续定投会稀释收益率，故以金额为主、收益率为辅。</li>
+        <li>持仓金额和成本以 App 显示口径为准，尚未发生的卖出费用不预扣；已实现收益按实际净到账计算，不重复扣费。在途资金是否包含以各期备注为准。</li>
+        <li><b>持仓成本</b>只包含剩余持仓的成本，卖出时扣除对应成本，不是历史累计买入金额。<b>持仓收益 = 市值 − 持仓成本</b>。</li>
+        <li><b>已实现收益</b>为截至快照日累计的卖出净到账减卖出部分成本，以及现金分红；清仓后继续保留。<b>累计收益 = 持仓收益 + 已实现收益</b>，卖出现金不计入基金市值。</li>
+        <li><b>持仓收益率 = 持仓收益 ÷ 持仓成本</b>，不是累计收益率或年化收益率。当前未记录完整资金进出时间，因此不计算累计收益率。</li>
+        <li>分组卡片及当前持仓明细展示持仓收益；总收益曲线和历次快照的累计收益包含已实现收益。未提供已实现收益的历史快照按 0 处理。</li>
         <li>曲线仅在<b>快照点</b>有真实数据，点与点之间为连线，<b>不代表逐日行情</b>。</li>
         <li>「分组变化」的迷你走势图<b>各自缩放</b>，只用于比较形状，<b>不代表金额大小</b>；要看金额点开卡片。</li>
         <li>图表支持<b>滚轮缩放、拖拽平移</b>；放大后标题旁会出现「复位」，双击图表同样可还原。</li>
@@ -1222,7 +1240,7 @@ permalink: /fund/
 
     /* ── 格式化 ─────────────────────────────────────── */
     function money(n) {
-      return "¥" + Math.round(n).toLocaleString("en-US");
+      return "¥" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     /* 坐标轴刻度用：金额大到一定程度改用「万」，中文语境比 "k" 好读 */
     function moneyCompact(n) {
@@ -1235,7 +1253,7 @@ permalink: /fund/
       return sign + "¥" + Math.round(a).toLocaleString("en-US");
     }
     function signedMoney(n) {
-      return (n >= 0 ? "+" : "−") + "¥" + Math.round(Math.abs(n)).toLocaleString("en-US");
+      return (n >= 0 ? "+" : "−") + money(Math.abs(n));
     }
     function signedPct(r) {
       return (r >= 0 ? "+" : "−") + Math.abs(r * 100).toFixed(2) + "%";
@@ -1275,7 +1293,7 @@ permalink: /fund/
         (s.holdings || []).forEach(function (x) {
           if (x && x.invested != null) h[x.id] = x;
         });
-        return { date: date, note: s.note || "", h: h };
+        return { date: date, note: s.note || "", h: h, realized: s.realized || {} };
       });
     var N = snaps.length;
 
@@ -1285,6 +1303,9 @@ permalink: /fund/
     Object.keys(snapMap).forEach(function (key) {
       ((snapMap[key] || {}).holdings || []).forEach(function (x) {
         if (x && x.id && !fundById[x.id] && unknownIds.indexOf(x.id) < 0) unknownIds.push(x.id);
+      });
+      Object.keys((snapMap[key] || {}).realized || {}).forEach(function (id) {
+        if (!fundById[id] && unknownIds.indexOf(id) < 0) unknownIds.push(id);
       });
     });
     function esc(s) {
@@ -1308,7 +1329,13 @@ permalink: /fund/
         inv += fundSeries[f.id][i].invested;
         val += fundSeries[f.id][i].value;
       });
-      return { date: s.date, note: s.note, invested: inv, value: val, profit: val - inv };
+      var realized = Object.keys(s.realized).reduce(function (sum, id) {
+        return sum + (fundById[id] ? s.realized[id] : 0);
+      }, 0);
+      return {
+        date: s.date, note: s.note, invested: inv, value: val,
+        profit: val - inv, realized: realized, totalProfit: val - inv + realized
+      };
     });
 
     var cur = totals[N - 1];
@@ -1379,21 +1406,33 @@ permalink: /fund/
         cls: ""
       },
       {
-        label: "累计投入",
+        label: "持仓成本",
         value: money(cur.invested),
-        sub: N + " 次快照累计",
+        sub: "仅当前剩余持仓",
         cls: ""
       },
       {
-        label: "累计收益",
+        label: "持仓收益",
         value: signedMoney(cur.profit),
         sub: prv ? "较上次 " + signedMoney(cur.profit - prv.profit) : "首次记录",
         cls: tone(cur.profit)
       },
       {
-        label: "累计收益率",
+        label: "持仓收益率",
         value: signedPct(cur.invested ? cur.profit / cur.invested : 0),
         cls: tone(cur.profit)
+      },
+      {
+        label: "已实现收益",
+        value: signedMoney(cur.realized),
+        sub: "累计卖出收益及现金分红",
+        cls: tone(cur.realized)
+      },
+      {
+        label: "累计收益",
+        value: signedMoney(cur.totalProfit),
+        sub: prv ? "较上次 " + signedMoney(cur.totalProfit - prv.totalProfit) : "首次记录",
+        cls: tone(cur.totalProfit)
       }
     ];
 
@@ -1708,7 +1747,7 @@ permalink: /fund/
           {
             label: "累计收益",
             data: totals.map(function (t) {
-              return { x: Date.parse(t.date), y: t.profit };
+              return { x: Date.parse(t.date), y: t.totalProfit };
             }),
             borderColor: "#b4472f",
             borderWidth: 2,
@@ -1793,8 +1832,10 @@ permalink: /fund/
                 var i = ctx.dataIndex;
                 var t = totals[i];
                 return [
-                  "累计收益 " + signedMoney(t.profit),
-                  "市值 " + money(t.value) + " / 投入 " + money(t.invested)
+                  "累计收益 " + signedMoney(t.totalProfit),
+                  "持仓收益 " + signedMoney(t.profit),
+                  "已实现收益 " + signedMoney(t.realized),
+                  "市值 " + money(t.value) + " / 持仓成本 " + money(t.invested)
                 ];
               }
             }
@@ -1909,7 +1950,7 @@ permalink: /fund/
                 tension: 0.18
               },
               {
-                label: "累计投入",
+                label: "持仓成本",
                 data: g.inv.map(function (v, j) {
                   return { x: Date.parse(snaps[j].date), y: v };
                 }),
@@ -2032,14 +2073,14 @@ permalink: /fund/
     }
 
     var FUND_TABLE_HEAD =
-      "<tr><th scope=\"col\">基金</th><th scope=\"col\">累计投入</th>" +
-      "<th scope=\"col\">当前市值</th><th scope=\"col\">累计收益</th>" +
-      "<th scope=\"col\">收益率</th><th scope=\"col\">占比</th></tr>";
+      "<tr><th scope=\"col\">基金</th><th scope=\"col\">持仓成本</th>" +
+      "<th scope=\"col\">当前市值</th><th scope=\"col\">持仓收益</th>" +
+      "<th scope=\"col\">持仓收益率</th><th scope=\"col\">占比</th></tr>";
 
     var HISTORY_TABLE_HEAD =
-      "<tr><th scope=\"col\">日期</th><th scope=\"col\">累计投入</th>" +
-      "<th scope=\"col\">当前市值</th><th scope=\"col\">累计收益</th>" +
-      "<th scope=\"col\">收益率</th><th scope=\"col\" class=\"fd-note\">备注</th></tr>";
+      "<tr><th scope=\"col\">日期</th><th scope=\"col\">持仓成本</th>" +
+      "<th scope=\"col\">当前市值</th><th scope=\"col\">持仓收益</th>" +
+      "<th scope=\"col\">持仓收益率</th><th scope=\"col\" class=\"fd-note\">备注</th></tr>";
 
     /* 单只基金的历次快照（浮层在「按单只基金」时用它代替只有一行的组内表） */
     function historyRowsHtml(id) {
@@ -2094,7 +2135,7 @@ permalink: /fund/
               tension: dense ? 0 : 0.18
             },
             {
-              label: "累计投入",
+              label: "持仓成本",
               data: g.inv.map(function (v, i) {
                 return { x: Date.parse(snaps[i].date), y: v };
               }),
@@ -2227,9 +2268,9 @@ permalink: /fund/
 
       el("fdModalStats").innerHTML = [
         { label: "当前市值", value: money(g.value), cls: "" },
-        { label: "累计投入", value: money(g.invested), cls: "" },
-        { label: "累计收益", value: signedMoney(g.profit), cls: tone(g.profit) },
-        { label: "累计收益率", value: signedPct(g.rate), cls: tone(g.profit) }
+        { label: "持仓成本", value: money(g.invested), cls: "" },
+        { label: "持仓收益", value: signedMoney(g.profit), cls: tone(g.profit) },
+        { label: "持仓收益率", value: signedPct(g.rate), cls: tone(g.profit) }
       ]
         .map(function (s) {
           return (
@@ -2390,6 +2431,16 @@ permalink: /fund/
     })();
 
     function renderTables() {
+      var realizedIds = Object.keys(snaps[N - 1].realized).filter(function (id) {
+        return !!fundById[id];
+      });
+      el("fdRealizedDetail").hidden = realizedIds.length === 0;
+      el("fdRealizedBody").innerHTML = realizedIds.map(function (id) {
+        var amount = snaps[N - 1].realized[id];
+        return '<tr><td class="fd-name-cell">' + esc(fundById[id].name) +
+          '</td><td>' + (fundSeries[id][N - 1].held ? "仍持有" : "已清仓") +
+          '</td><td class="fd-num ' + tone(amount) + '">' + signedMoney(amount) + "</td></tr>";
+      }).join("");
       var rows = funds
         .map(function (f) {
           var s = fundSeries[f.id][N - 1];
@@ -2469,6 +2520,10 @@ permalink: /fund/
             '">' +
             signedMoney(t.profit) +
             "</td>" +
+            '<td class="fd-num ' + tone(t.realized) + '">' +
+            signedMoney(t.realized) + "</td>" +
+            '<td class="fd-num ' + tone(t.totalProfit) + '">' +
+            signedMoney(t.totalProfit) + "</td>" +
             '<td class="fd-num ' +
             tone(t.profit) +
             '">' +

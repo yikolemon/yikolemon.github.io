@@ -1,0 +1,28 @@
+{
+  "note": "按用户确认，本期直接采用 11-24 凌晨各 App 截图显示金额，不扣除资产中包含的在途申购；持仓成本按资产减持有收益计算，因此与首期排除在途的口径有差异。场外净值日期存在滞后；不混用午后交易截图的新扣款。基金公司 App 中的支付宝代销持仓不重复统计。159632 已清仓，沿用旧快照成本 1029.90 元，净到账 1093.01 元，已实现收益 63.11 元已计入累计收益；卖出现金不计入基金市值。",
+  "realized": {
+    "huaan_nasdaq100_etf": 63.11
+  },
+  "holdings": [
+    { "id": "nanfang_nasdaq100", "invested": 370.00, "value": 324.81 },
+    { "id": "morgan_sp500", "invested": 400.00, "value": 367.64 },
+    { "id": "morgan_nasdaq100", "invested": 400.00, "value": 352.48 },
+    { "id": "guangfa_nasdaq100", "invested": 3422.00, "value": 3119.36 },
+    { "id": "huaan_nasdaq100", "invested": 75.00, "value": 61.55 },
+    { "id": "dacheng_nasdaq100", "invested": 130.00, "value": 106.30 },
+    { "id": "zhaoshang_nasdaq100", "invested": 100.00, "value": 82.80 },
+    { "id": "guotai_nasdaq100", "invested": 400.00, "value": 324.68 },
+    { "id": "jingshun_na_tech", "invested": 200.00, "value": 151.25 },
+    { "id": "tianhong_nasdaq100", "invested": 5200.00, "value": 4721.51 },
+    { "id": "guangfa_nasdaq100_zx", "invested": 20.00, "value": 16.48 },
+    { "id": "guangfa_nasdaq100_f", "invested": 200.00, "value": 164.82 },
+    { "id": "nanfang_nasdaq100_i", "invested": 6800.00, "value": 5979.47 },
+    { "id": "wanjia_nasdaq100", "invested": 145.00, "value": 130.53 },
+    { "id": "wanjia_nasdaq100_zx", "invested": 2100.00, "value": 1911.67 },
+    { "id": "jianxin_nasdaq100", "invested": 270.00, "value": 244.50 },
+    { "id": "jianxin_nasdaq100_zx", "invested": 1150.00, "value": 1034.25 },
+    { "id": "nanfang_nasdaq100_a_zx", "invested": 30.00, "value": 26.27 },
+    { "id": "tianhong_nasdaq100_d", "invested": 2500.00, "value": 2257.21 },
+    { "id": "tianhong_sp500_d", "invested": 2500.00, "value": 2331.49 }
+  ]
+}
