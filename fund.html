@@ -631,14 +631,16 @@ permalink: /fund/
     display: none;
   }
 
-  .fd-detail > summary::after {
-    margin-left: 8px;
+  .fd-detail > summary::before {
+    display: inline-block;
+    width: 0.8em;
+    margin-right: 8px;
     color: var(--fd-faint);
-    content: "▾";
+    content: "\25B8";
   }
 
-  .fd-detail[open] > summary::after {
-    content: "▴";
+  .fd-detail[open] > summary::before {
+    content: "\25BE";
   }
 
   .fd-detail > summary:focus-visible {

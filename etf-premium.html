@@ -567,14 +567,16 @@ permalink: /etf-premium/
     display: none;
   }
 
-  .ep-detail > summary::after {
-    margin-left: 8px;
+  .ep-detail > summary::before {
+    display: inline-block;
+    width: 0.8em;
+    margin-right: 8px;
     color: var(--ep-faint);
-    content: "\25BE";
+    content: "\25B8";
   }
 
-  .ep-detail[open] > summary::after {
-    content: "\25B4";
+  .ep-detail[open] > summary::before {
+    content: "\25BE";
   }
 
   .ep-detail > summary:focus-visible {
